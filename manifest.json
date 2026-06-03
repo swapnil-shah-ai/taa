@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TAA - Claude Usage Tracker",
-  "version": "0.9.0",
+  "version": "0.11.0",
   "description": "See in plain English how much of your Claude usage is left and when it resets. Runs 100% on your machine.",
   "permissions": ["storage"],
   "host_permissions": ["https://claude.ai/*"],

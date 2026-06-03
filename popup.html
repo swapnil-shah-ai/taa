@@ -12,6 +12,7 @@
   .section { padding:16px; border-bottom:1px solid var(--line); }
   .label { font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); margin:0 0 10px; }
   .big { font-size:30px; font-weight:700; line-height:1.1; }
+  .mid { font-size:20px; font-weight:700; }
   .sub { color:var(--muted); margin-top:4px; }
   .status { margin-top:8px; font-weight:600; }
   .bar { height:8px; border-radius:99px; background:#2a2623; overflow:hidden; margin:10px 0 4px; }
@@ -30,6 +31,11 @@
   <div class="section">
     <div class="label">How much Claude you have left</div>
     <div id="usageBox"><div class="empty">Send a message in Claude, then reopen this to see your usage.</div></div>
+  </div>
+
+  <div class="section">
+    <div class="label">Your history, across all chats</div>
+    <div id="historyBox"><div class="empty">Open claude.ai to scan your chats.</div></div>
   </div>
 
   <div class="section">

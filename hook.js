@@ -1,6 +1,6 @@
-// TAA page hook. Runs in claude.ai's page context. Reads copies of responses to
-// (a) estimate conversation text size and (b) read the EXACT rate-limit usage
-// that Claude reports in the completion stream. Never blocks or alters requests.
+// TAA page hook. Reads copies of responses: conversation text (estimate),
+// the exact rate-limit usage (completion stream), and your chat list.
+// Never blocks or alters requests.
 
 (function () {
   if (window.__taaHookLoaded) return;
@@ -35,7 +35,6 @@
     return best;
   }
 
-  // Exact rate-limit windows that Claude reports in the completion stream.
   function parseLimitFromSSE(text) {
     const lines = text.split(/\r?\n/);
     for (const line of lines) {
@@ -50,39 +49,62 @@
     return null;
   }
 
+  function shortPath(url) { try { return new URL(url, location.origin).pathname; } catch (e) { return String(url); } }
+
+  // Find the biggest array of chat-summary objects (your conversation list).
+  function detectChatList(obj, url, best) {
+    best = best || { count: 0, items: null, path: "" };
+    if (!obj || typeof obj !== "object") return best;
+    if (Array.isArray(obj)) {
+      const items = [];
+      for (const it of obj) {
+        if (it && typeof it === "object" && it.uuid && (it.name !== undefined || it.summary !== undefined) && (it.created_at || it.updated_at)) {
+          items.push({ uuid: it.uuid, name: it.name || it.summary || "chat", created_at: it.created_at || "", updated_at: it.updated_at || "", model: it.model || "" });
+        }
+      }
+      if (items.length > best.count) best = { count: items.length, items: items, path: shortPath(url) };
+      for (const it of obj) best = detectChatList(it, url, best);
+      return best;
+    }
+    for (const k in obj) best = detectChatList(obj[k], url, best);
+    return best;
+  }
+
   function postText() { window.postMessage({ __taa: true, text: latest.text, count: latest.count }, "*"); }
   function postLimit(l) { window.postMessage({ __taa_limit: true, windows: l.windows, claim: l.claim }, "*"); }
 
-  function consider(data) {
+  function consider(data, url) {
     try {
       const r = findConversation(data);
       if (r.text && r.text.length > latest.text.length) { latest = { text: r.text, count: r.count }; postText(); }
+      const cl = detectChatList(data, url || "");
+      if (cl.count > 1 && cl.items) {
+        const m = (cl.path || "").match(/organizations\/([^/]+)\//);
+        const envelope = Array.isArray(data) ? ("array[" + data.length + "]") : Object.keys(data).join(",");
+        window.postMessage({ __taa_list: true, org: m ? m[1] : "", chats: cl.items, url: url || "", envelope: envelope }, "*");
+      }
     } catch (e) {}
   }
 
-  // Read the completion stream chunk by chunk and pull the limit windows out of it.
   function readLimitFromStream(res) {
     let reader; try { reader = res.clone().body.getReader(); } catch (e) { return; }
     const dec = new TextDecoder(); let buf = "", done = false;
     function check() { if (done) return; const l = parseLimitFromSSE(buf); if (l) { done = true; postLimit(l); } }
     function pump() {
-      reader.read().then((r) => {
-        if (r.done) { check(); return; }
-        buf += dec.decode(r.value, { stream: true });
-        check();
-        pump();
-      }).catch(function () { check(); });
+      reader.read().then((r) => { if (r.done) { check(); return; } buf += dec.decode(r.value, { stream: true }); check(); pump(); })
+        .catch(function () { check(); });
     }
     pump();
   }
 
   const origFetch = window.fetch;
   window.fetch = function (input) {
+    const url = typeof input === "string" ? input : (input && input.url) || "";
     return origFetch.apply(this, arguments).then((res) => {
       try {
         const ct = res.headers.get("content-type") || "";
         if (ct.indexOf("text/event-stream") !== -1) readLimitFromStream(res);
-        else if (ct.indexOf("application/json") !== -1) res.clone().json().then(consider).catch(function () {});
+        else if (ct.indexOf("application/json") !== -1) res.clone().json().then((d) => consider(d, url)).catch(function () {});
       } catch (e) {}
       return res;
     });
@@ -91,10 +113,11 @@
   const oOpen = XMLHttpRequest.prototype.open, oSend = XMLHttpRequest.prototype.send;
   XMLHttpRequest.prototype.open = function (m, url) { this.__u = url; return oOpen.apply(this, arguments); };
   XMLHttpRequest.prototype.send = function () {
+    const self = this;
     this.addEventListener("load", function () {
       try {
         const ct = this.getResponseHeader("content-type") || "";
-        if (ct.indexOf("application/json") !== -1) consider(JSON.parse(this.responseText));
+        if (ct.indexOf("application/json") !== -1) consider(JSON.parse(this.responseText), self.__u || "");
         else if (ct.indexOf("text/event-stream") !== -1) { const l = parseLimitFromSSE(this.responseText); if (l) postLimit(l); }
       } catch (e) {}
     });
