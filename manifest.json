@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "TAA - Token & Limit Tracker",
+  "version": "0.8.0",
+  "description": "See your Claude.ai usage limits (exact) and a rough context-size estimate. Computed 100% on your machine.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://claude.ai/*"],
+  "content_scripts": [
+    { "matches": ["https://claude.ai/*"], "js": ["hook.js"], "run_at": "document_start", "world": "MAIN" },
+    { "matches": ["https://claude.ai/*"], "js": ["content.js"], "run_at": "document_idle" }
+  ],
+  "action": { "default_popup": "popup.html", "default_title": "TAA - Token & Limit Tracker" }
+}

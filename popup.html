@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  :root { --bg:#1b1816; --card:#262220; --line:#3a3431; --text:#ece6df; --muted:#9a918a; --green:#2ea043; --amber:#bb8009; --red:#cf2f2f; }
+  * { box-sizing:border-box; }
+  body { width:340px; margin:0; background:var(--bg); color:var(--text); font-family:ui-sans-serif,system-ui,-apple-system,sans-serif; font-size:13px; line-height:1.45; }
+  header { padding:14px 16px 10px; border-bottom:1px solid var(--line); }
+  header h1 { font-size:14px; margin:0; letter-spacing:.3px; }
+  header p { margin:3px 0 0; color:var(--muted); font-size:11px; }
+  .section { padding:14px 16px; border-bottom:1px solid var(--line); }
+  .section h2 { font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); margin:0 0 10px; }
+  .row { display:flex; align-items:center; justify-content:space-between; margin:8px 0; gap:10px; }
+  .row label { color:var(--muted); flex:1; }
+  .big { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .bar { height:6px; border-radius:99px; background:var(--card); overflow:hidden; margin-top:5px; }
+  .bar > span { display:block; height:100%; }
+  .val { font-variant-numeric:tabular-nums; }
+  .chat { display:flex; align-items:center; justify-content:space-between; padding:6px 0; gap:10px; }
+  .chat .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+  .chat .v { color:var(--muted); flex:none; font-variant-numeric:tabular-nums; }
+  .empty { color:var(--muted); font-size:12px; }
+  input { width:110px; background:var(--card); border:1px solid var(--line); color:var(--text); border-radius:7px; padding:6px 8px; font-size:12px; text-align:right; font-variant-numeric:tabular-nums; }
+  .result { background:var(--card); border:1px solid var(--line); border-radius:9px; padding:12px; margin-top:12px; }
+  .save { color:var(--green); } .over { color:var(--red); }
+  .note { color:var(--muted); font-size:10.5px; margin-top:10px; line-height:1.4; }
+  button.reset { background:none; border:1px solid var(--line); color:var(--muted); border-radius:7px; padding:5px 9px; font-size:11px; cursor:pointer; margin-top:6px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>TAA &middot; Token & limit tracker</h1>
+    <p>Computed entirely on your machine. Nothing is sent anywhere.</p>
+  </header>
+
+  <div class="section">
+    <h2>Usage limits &mdash; exact, from Claude</h2>
+    <div id="limits"><div class="empty">Send a message in any chat to capture your limits.</div></div>
+  </div>
+
+  <div class="section">
+    <h2>Context size &mdash; estimate</h2>
+    <div class="big" id="ctx">&mdash;</div>
+    <div class="note">Rough estimate of readable text only (about 4 characters per token). It does <b>not</b> include images, documents, artifacts, or system overhead, so the real context is higher. This is a directional gauge, not an exact count.</div>
+  </div>
+
+  <div class="section">
+    <h2>Tracked chats</h2>
+    <div id="chats"><div class="empty">Open a chat to start tracking.</div></div>
+    <button class="reset" id="reset">Clear tracked chats</button>
+  </div>
+
+  <div class="section">
+    <h2>Value math &mdash; subscription vs API</h2>
+    <div class="row"><label>Subscription / month</label><input id="sub" type="number" value="20" /></div>
+    <div class="row"><label>Input tokens / month (millions)</label><input id="inTok" type="number" value="10" /></div>
+    <div class="row"><label>Output tokens / month (millions)</label><input id="outTok" type="number" value="2" /></div>
+    <div class="row"><label>Input rate / million</label><input id="inRate" type="number" value="3" /></div>
+    <div class="row"><label>Output rate / million</label><input id="outRate" type="number" value="15" /></div>
+    <div class="result">
+      <div>API-equivalent cost / month</div>
+      <div class="big" id="apiCost">0</div>
+      <div id="verdict" style="margin-top:6px;font-size:12px;"></div>
+    </div>
+    <div class="note">Rates and prices are placeholders you can edit. Use one currency for all five boxes.</div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
