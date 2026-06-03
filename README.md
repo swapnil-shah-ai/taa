@@ -1,40 +1,27 @@
-# TAA — Token & Limit Tracker for Claude.ai
+# TAA — Claude Usage Tracker
 
-A small, fully local Chrome extension that shows, while you use claude.ai:
+A tiny, fully local Chrome extension that tells you, in plain English, **how much of your Claude usage is left and when it resets**, while you're on claude.ai.
 
-- **Your usage limits, exact.** Claude reports your rate-limit usage (5-hour and 7-day windows) in its own response data. TAA reads those exact numbers and shows them, so you can see how close you are to a limit before you hit it.
-- **A rough context-size estimate.** An approximate count of the readable text in the current chat, so you get a directional sense of how big a conversation is getting.
-- **Subscription vs API value math.** A simple calculator to see whether your subscription or paying per token is cheaper for your usage.
+- **Usage left**: Claude reports your exact usage in every reply. TAA shows it simply: "73% left, refills in 3h 58m." A badge on the page and a popup keep it in view so you know before you get paused.
+- **This chat's size**: a rough sense of how long the current chat is getting.
 
-Everything is computed in your browser. There is **no server, no account, no API key, and nothing is ever sent anywhere.**
+Everything is computed in your browser. **No server, no account, no API key, nothing leaves your machine.**
 
-## What it honestly cannot do
+## What it does not do
 
-This matters, so it's stated plainly:
+- It does **not** count tokens exactly. Claude's tokenizer isn't public and the web app doesn't expose token counts, so the chat size is a rough estimate of readable text only (it excludes images, files, and system overhead, so the real size is larger).
+- The one number that **is** exact is your usage-left percentage, because Claude reports it directly.
 
-- **It cannot count tokens exactly.** Claude's tokenizer is not public, and claude.ai's web app does not expose per-message token counts (the usage fields are stripped from its response stream). The context number is an estimate based on readable text (~4 characters per token).
-- **The estimate undercounts.** It does not include images, uploaded documents, artifacts, or system overhead, all of which consume real context. So the true context is always higher than the estimate.
-- **The only exact token count comes from Anthropic's paid `count_tokens` API**, which this extension deliberately does not use, to keep everything free and local.
+## Install
 
-The one number here that *is* exact is the usage-limit percentage, because Claude reports it directly.
-
-## Install (developer mode)
-
-1. Download or clone this repo to a local folder (not inside a synced folder like OneDrive).
-2. Go to `chrome://extensions`, turn on **Developer mode** (top-right).
-3. Click **Load unpacked** and select the folder containing `manifest.json`.
-4. Open claude.ai. A badge appears bottom-right; send a message to capture your limits.
-
-## How it works
-
-- A content script reads a copy of the data the page already loads, only on `claude.ai`.
-- The usage limits come from the completion response stream Claude sends back.
-- The context estimate comes from the conversation text and the visible page.
-- Readings are stored locally in the browser via `chrome.storage`.
+1. Download/clone this repo to a local folder (not a synced folder like OneDrive).
+2. Go to `chrome://extensions`, turn on **Developer mode**.
+3. Click **Load unpacked** and pick the folder with `manifest.json`.
+4. Open claude.ai and send a message, your usage appears.
 
 ## Privacy
 
-No network requests are made by the extension. It only reads copies of responses your browser already received from claude.ai. It stores nothing outside your own browser.
+The extension makes no network requests. It only reads copies of responses your browser already gets from claude.ai, and stores readings locally.
 
 ## License
 

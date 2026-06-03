@@ -1,22 +1,26 @@
-// TAA content script (isolated). Draws the badge, stores readings. All local.
+// TAA content script. Plain-language badge: how much Claude usage you have left.
+// All local. No network calls.
 
-const TAA = { CHARS_PER_TOKEN: 4, CONTEXT_LIMIT: 200000 };
-
+const CONTEXT_CHARS_PER_TOKEN = 4;
 let liveMaxText = "";
 let lastKey = null;
-let limitData = null;   // { windows, claim } - exact, from the completion stream
+let limitData = null;   // { windows } - exact, from the completion stream
 
 function contextAlive() { try { return !!(chrome.runtime && chrome.runtime.id); } catch (e) { return false; } }
 function isChatPage() { return location.pathname.indexOf("/chat/") !== -1; }
-function estimateTokens(text) { const c = (text || "").replace(/\s+/g, " ").trim(); return Math.round(c.length / TAA.CHARS_PER_TOKEN); }
+function estTokens(t) { const c = (t || "").replace(/\s+/g, " ").trim(); return Math.round(c.length / CONTEXT_CHARS_PER_TOKEN); }
 function domText() {
-  const main = document.querySelector("main");
-  let t = main && main.innerText ? main.innerText : "";
+  const m = document.querySelector("main");
+  let t = m && m.innerText ? m.innerText : "";
   if (!t && document.body) t = document.body.innerText || "";
   return t;
 }
-function colorByPct(p) { if (p < 50) return "#2ea043"; if (p < 80) return "#bb8009"; return "#cf2f2f"; }
-function colorByTokens(t) { if (t < 100000) return "#2ea043"; if (t < 160000) return "#bb8009"; return "#cf2f2f"; }
+
+// load last-known usage so the badge can show runway right away
+try { chrome.storage.local.get(["taa_limit"], (r) => { if (r && r.taa_limit) limitData = r.taa_limit; }); } catch (e) {}
+
+function fresh(win) { return win && win.resets_at && (win.resets_at * 1000 > Date.now()); }
+function leftPct(win) { return Math.max(0, Math.round((1 - (win.utilization || 0)) * 100)); }
 
 function ensureBadge() {
   let b = document.getElementById("taa-badge");
@@ -41,8 +45,8 @@ function onHookMessage(e) {
     const d = e.data;
     if (!d) return;
     if (d.__taa_limit === true && d.windows) {
-      limitData = { windows: d.windows, claim: d.claim || "" };
-      try { chrome.storage.local.set({ taa_limit: limitData, taa_limit_ts: Date.now() }); } catch (x) {}
+      limitData = { windows: d.windows };
+      try { chrome.storage.local.set({ taa_limit: limitData }); } catch (x) {}
       return;
     }
     if (d.__taa === true && typeof d.text === "string") {
@@ -59,23 +63,23 @@ function update() {
 
   const key = location.pathname;
   if (key !== lastKey) { lastKey = key; liveMaxText = ""; }
-
-  const est = Math.max(estimateTokens(liveMaxText), estimateTokens(domText()));
+  const size = Math.max(estTokens(liveMaxText), estTokens(domText()));
 
   try {
     chrome.storage.local.get(["taa_chats"], (res) => {
       const chats = res.taa_chats || {};
-      const prevEst = chats[key] ? chats[key].est : 0;
-      const estTokens = Math.max(prevEst || 0, est);
+      const prev = chats[key] ? chats[key].size : 0;
+      const chatSize = Math.max(prev || 0, size);
 
+      const w5 = limitData && limitData.windows ? limitData.windows["5h"] : null;
       let text, color;
-      if (limitData && limitData.windows && limitData.windows["5h"]) {
-        const p5 = Math.round((limitData.windows["5h"].utilization || 0) * 100);
-        text = "TAA \u00b7 ~" + estTokens.toLocaleString() + " est \u00b7 5h limit " + p5 + "%";
-        color = colorByPct(p5);
+      if (w5 && fresh(w5)) {
+        const left = leftPct(w5);
+        text = "TAA \u00b7 " + left + "% usage left";
+        color = left >= 30 ? "#2ea043" : left >= 10 ? "#bb8009" : "#cf2f2f";
       } else {
-        text = "TAA \u00b7 ~" + estTokens.toLocaleString() + " tokens (est)";
-        color = colorByTokens(estTokens);
+        text = "TAA \u00b7 send a message to see usage";
+        color = "#6e6e6e";
       }
 
       const badge = ensureBadge();
@@ -84,11 +88,11 @@ function update() {
       badge.textContent = text;
 
       chats[key] = {
-        est: estTokens,
+        size: chatSize,
         title: document.title.replace(/\s*[-|]\s*Claude.*$/i, "").trim() || key,
         url: location.href, updated: Date.now()
       };
-      chrome.storage.local.set({ taa_chats: chats });
+      chrome.storage.local.set({ taa_chats: chats, taa_current: { size: chatSize } });
     });
   } catch (e) {}
 }
